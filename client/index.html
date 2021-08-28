@@ -1,0 +1,204 @@
+<htm>
+    <head></head>
+    <body>
+        <div style="text-align:center;" onmousemove="showCoords(event)" onclick="mouseClick(event)" onmousedown="mouseDown(event)" onmouseup="mouseUp()" id='div' >
+            <canvas id='can' width="640" height="480" style="border:1px solid #000000;"></canvas>
+        </div>
+        <br /><br /><br /><br /><br />
+        <div style="text-align:center;">
+            <button type="button" onclick="startGame()">Start</button><br />
+            <button type="button" onclick="setName()">Set Name</button><br />
+            <input id="name" type="text" />
+        </div>
+        <div id='msg' style="text-align:center;"></div>
+        <!--<script src="/client/main.js"></script>-->
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io()
+            const c = document.getElementById("can")
+            const ctx = c.getContext("2d")
+            const WIDTH = 640
+            const HEIGHT = 480
+            let ping = 0
+            const player = {
+                x: 0,
+                y: 0
+            }
+            let mouseX = 0, mouseY = 0
+            const map_image = new Image()
+            map_image.src = '/client/map2.png'
+            const arrow_image = new Image()
+            arrow_image.src = '/client/red_arrow.png'
+            let rd = {}
+            socket.on('update', function (data) {
+                player.x = data.x
+                player.y = data.y
+                rd = data
+                //ping = (new Date().getTime() - rd.time)
+            })
+
+            socket.on('fuck', function (data) {
+                document.getElementById('msg').innerHTML = 'Fuck You'
+                setTimeout(() => document.getElementById('msg').innerHTML = '', 2000)
+            })
+
+            function update() {
+                clear(ctx)
+                for (d in rd.pack) {
+                    drawOn(ctx, rd.pack[d])
+                    if (rd.pack[d].health) 
+                        drawHealth(ctx, rd.pack[d])
+                    if (rd.pack[d].name)
+                        drawName(ctx, rd.pack[d], 'white')
+                }
+                ctx.fillStyle = rd.target.color
+                ctx.fillRect(570, 50, 20, 50)
+                ctx.font = '18px Arial'
+                ctx.fillStyle = 'red'
+                ctx.fillText(rd.target.name, 580 - getTextWidth(rd.target.name, '18px Arial') / 2, 30)
+                ctx.fillStyle = 'blue'
+                ctx.fillText(rd.alive + ' / ' + rd.total , 30, 30)
+                console.log(rd.tracker)
+                if (rd.tracker.valid)
+                    drawTracker(ctx, rd.tracker)
+                //ctx.fillText('ping: ' + ping + ' ms', 30, 60)
+            }
+
+            function drawOn(c, obj) {
+                c.fillStyle = obj.color
+                c.fillRect(obj.x - obj.width / 2 - player.x + WIDTH / 2, obj.y - obj.height / 2 - player.y + HEIGHT / 2, obj.width, obj.height)
+            }
+
+            function clear(c) {
+                c.clearRect(0, 0, WIDTH, HEIGHT);
+                c.drawImage(map_image, - player.x + WIDTH / 2, - player.y + HEIGHT / 2, 2400, 2400)
+            }
+
+            function drawTracker(c, tracker) {
+                const RADIUS = 70
+                const x = WIDTH / 2 + RADIUS * Math.cos(tracker.angle) 
+                const y = HEIGHT / 2 + RADIUS * Math.sin(tracker.angle)
+                drawRotateImage(c, arrow_image, x -10, y- 10, 20, 20, tracker.angle / Math.PI * 180)
+            }
+
+            function drawName(c, obj, color, font="12px Arial") {
+                c.font = font
+                c.fillStyle = color
+                c.fillText(obj.name, obj.x - player.x + WIDTH / 2 - getTextWidth(obj.name, font) / 2, obj.y - obj.height * 0.5 - 40- player.y + HEIGHT / 2)
+                //c.strokeStyle = 'black' 
+                //c.strokeText(obj.name, obj.x - player.x + WIDTH / 2 - 6 * obj.name.length, obj.y - obj.height * 0.5 - 40- player.y + HEIGHT / 2)
+            }
+
+            function getTextWidth(text, font) {
+                // re-use canvas object for better performance
+                var canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+                var context = canvas.getContext("2d");
+                context.font = font;
+                var metrics = context.measureText(text);
+                return metrics.width;
+            }
+
+            function drawHealth(c, obj) {
+                drawOn(c, {
+                    x: obj.x ,
+                    y: obj.y - obj.height * 0.5 - 20,
+                    width: obj.width + 10,
+                    height: 10,
+                    color: 'red'
+                })
+                drawOn(c, {
+                    x: obj.x - (obj.width + 10) * 0.5 * (1- obj.health),
+                    y: obj.y - obj.height * 0.5 - 20,
+                    width: (obj.width + 10) * obj.health,
+                    height: 10,
+                    color: 'green'
+                })
+            }
+
+            document.onkeydown = function (event) {
+                if (event.keyCode === 68) // d
+                {
+                    socket.emit('keyPress', {input: 'right', state: true})
+                   // player.x+=3
+                }
+                else if (event.keyCode === 83) // s
+                {
+                    socket.emit('keyPress', {input: 'down', state: true})
+                   //player.y+=3
+                }
+                else if (event.keyCode === 65) // a
+                {
+                    socket.emit('keyPress', {input: 'left', state: true})
+                   // player.x-=3
+                }
+                else if (event.keyCode === 87) // w
+                {
+                    socket.emit('keyPress', {input: 'up', state: true})
+                    //player.y-=3
+                }
+            }
+
+            document.onkeyup = function (event) {
+                if (event.keyCode === 68) // d
+                    socket.emit('keyPress', {input: 'right', state: false})
+                else if (event.keyCode === 83) // s
+                    socket.emit('keyPress', {input: 'down', state: false})
+                else if (event.keyCode === 65) // a
+                    socket.emit('keyPress', {input: 'left', state: false})
+                else if (event.keyCode === 87) // w
+                    socket.emit('keyPress', {input: 'up', state: false})
+            }
+
+            //document.onkeypress = function (event) {
+            let attack = false
+            function mouseDown () {
+                mouseX = event.clientX - document.getElementById("can").offsetLeft
+                mouseY = event.clientY - document.getElementById("can").offsetTop
+                const add = mouseX < WIDTH / 2 ? Math.PI : 0
+                socket.emit('attack', {angle: Math.atan((mouseY - HEIGHT / 2) / (mouseX - WIDTH / 2)) + add})
+                socket.emit('keyPress', {input: 'mouse', state: true})
+                attack = true
+            }
+            
+            function mouseUp() {
+                socket.emit('keyPress', {input: 'mouse', state: false})
+                attack = false
+            }
+            //}
+
+            function mouseClick(event) {
+                mouseX = event.clientX - document.getElementById("can").offsetLeft
+                mouseY = event.clientY - document.getElementById("can").offsetTop
+                const add = mouseX < WIDTH / 2 ? Math.PI : 0
+                socket.emit('attack', {angle: Math.atan((mouseY - HEIGHT / 2) / (mouseX - WIDTH / 2)) + add})
+            }
+
+            function showCoords(event) {
+                mouseX = event.clientX - document.getElementById("can").offsetLeft
+                mouseY = event.clientY - document.getElementById("can").offsetTop
+                const add = mouseX < WIDTH / 2 ? Math.PI : 0
+                if (attack) {
+                    socket.emit('attack', {angle: Math.atan((mouseY - HEIGHT / 2) / (mouseX - WIDTH / 2)) + add})
+                }
+            }
+
+            function startGame() {
+                socket.emit('start', 'amir11')//document.getElementById("pass").value)
+            }
+
+            function setName() {
+                socket.emit('setName', document.getElementById("name").value)
+            }
+
+            function drawRotateImage(ctx, image, x, y, w, h, degrees){
+                ctx.save();
+                ctx.translate(x+w/2, y+h/2);
+                ctx.rotate(degrees*Math.PI/180.0);
+                ctx.translate(-x-w/2, -y-h/2);
+                ctx.drawImage(image, x, y, w, h);
+                ctx.restore();
+            }
+            setInterval(update,1000/60)
+        </script>
+    </body>
+</htm>

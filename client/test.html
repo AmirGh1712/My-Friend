@@ -1,0 +1,52 @@
+<html>
+    <head></head>
+    <body>
+        <canvas id='can' width="640" height="480" style="border:1px solid #000000;"></canvas>
+        <div id='hid' ></div>
+        <div id='hid2' ></div>
+        <!--style="visibility: hidden;"-->
+        <script>
+            const c = document.getElementById("can")
+            const ctx = c.getContext("2d")
+            let img = new Image()
+            img.src = 'red_arrow.png'
+            //let aaa = rotate(img, 90)
+            //ctx.rotate(Math.PI / 180 * 90);
+            wait(img, function() {
+                drawImage(ctx, img, 200, 0, 100, 100, 90)
+                //ctx.restore();
+            })            
+
+            function wait(image, completed, count) {
+                if (count == null) count = 0;
+                if (!image.complete && count < 1000) {
+                    count++;
+                    window.setTimeout(function () {
+                        wait(image, completed, count);
+                        console.log('waiting...');
+                    }, 10);
+                }
+                else {
+                    completed();
+                }
+            }
+            function drawImage(ctx, image, x, y, w, h, degrees){
+                ctx.save();
+                ctx.translate(x+w/2, y+h/2);
+                ctx.rotate(degrees*Math.PI/180.0);
+                ctx.translate(-x-w/2, -y-h/2);
+                ctx.drawImage(image, x, y, w, h);
+                ctx.restore();
+            }
+            function rotate (image, angle) {
+                var img = image
+                img.setAttribute("style", "transform: rotate(" + angle + "deg)")
+                const id = Math.random()
+                img.setAttribute("id", id)
+                document.getElementById('hid').appendChild(img)
+                document.getElementById('hid2').appendChild(document.getElementById(id))
+                return document.getElementById(id)
+            }
+        </script>
+    </body>
+</html>
